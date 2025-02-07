@@ -1,5 +1,5 @@
 from rest_framework.generics import GenericAPIView
-from .serializers import UserSerializer, OTPSerializer
+from .serializers import UserSerializer, OTPSerializer, LoginSerializer
 from rest_framework.response import Response
 from rest_framework import status
 from .utils import *
@@ -20,14 +20,14 @@ class UserRegistration(GenericAPIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            user = serializer.data
             
-            send_code(user['email'])
+            user = serializer.save()
+            print("User instance:", user)  
+            send_code(request, user.email)
             
             return Response({
-                'data': user,
-                'message': f"hi {user['first_name']} thanks for signing up a passcode has been sent to your email"
+                'data': serializer.data,
+                'message': f"hi {user.first_name} thanks for signing up a passcode has been sent to your email"
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -55,3 +55,18 @@ class VerifyEmail(GenericAPIView):
                 'message': 'Invalid passcode'
             }, status=status.HTTP_404_NOT_FOUND)
         return Response({'message': 'OTP verified'}, status=status.HTTP_200_OK)
+
+
+
+class LoginView(GenericAPIView):
+    serializer_class = LoginSerializer
+    
+    def post(self, request):
+        context = {
+            'request': request
+        }
+        serializer = self.serializer_class(data=request.data, context=context)
+        if serializer.is_valid():
+            user = serializer.validated_data
+            return Response(user, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
